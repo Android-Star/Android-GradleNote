@@ -1,0 +1,813 @@
+
+	gradle学习总结
+
+A.入门
+1.运行gradle文件：gradle -q -b (文件名称)（task名称）
+	（-q是控制log输出等级），（-b控制运行哪一个文件不加的话默认是gradle.build文件）
+
+2.执行gradle wrapper命令可以生成wrapper相关的文件（wrapper主要是控制项目运行统一使用的gradle版本避免在不同的机器上因为版本不一样而造成冲突，其中wrapper.properties文件中有一些可配置属性）
+
+3.wrapper配置：
+	首先wrapper.properties中的属性大致如下：distributionBase；distributionPath；distributionUrl；zipStoreBase；zipStorePath
+
+	a.调用graddle wrapper之前可以指定gradle版本（--gradle-version number）和下载gradle的地址(--gradle-distribution-url)他们会影响生成的wrapper.properties中distributionUrl的值（该值规则是https\://services.gradle.org/distributions/gradle-${gradleVersion}-bin.zip）
+
+	b.distributionBase:下载的gradle压缩包解压后存储的主目录
+	  distributionPath:相对于distributionBase解压后的gradle压缩包的路径
+	  distributionUrl:gradle发行版压缩包的下载地址
+	  zipStoreBase:同distributionBase，但是是存放zip包的
+	  zipStorePath:同distributionPath，但是是存放zip包的
+
+4.gradle日志：
+	a.log级别ERROR,QUIET(-q),WARNING,LIFECYCLE,INFO(-i),DEBUG(-d)
+	b.输出错误堆栈信息：-s(输出关键性堆栈信息) -S（输出全部堆栈信息）一般使用-s
+	c.自己打印log使用logger:
+		logger.quiet('quiet日志信息');
+		logger.error('error日志信息');
+		logger.warn('warn日志信息');
+		logger.lifecycle('lifecycle日志信息');
+		logger.info('info日志信息');
+		logger.debug('debug日志信息');
+
+5.gradle命令行
+	1>gradle tasks --all 查看所有可以运行的task
+	2>gradle -h;gradle -help;gradle -?  查看帮助
+	3>gradle help --task task名字  查看某个task的信息
+	4>gradle --refresh-dependencies task名字  强制刷新依赖
+	5>gradle -PK=V project指定K_V格式的属性键值对
+
+B.Groovy基础
+	1.行尾分号不必须
+	2.字符串：单双引号都可，一般单引号用来定义字符串常量，双引号表示的字符串可以进行字符串运算
+	3.${name}
+	4.集合：
+		a.List
+		def numList=[1,2,3,56,'array']
+		println numList.getClass().name   java.util.ArrayList
+
+		println numList[-1]		array
+		println numList[1]		2
+		println numList[-2]    56
+		println numList[1..3]  [2,3,56]
+		b.Map
+		def mp=['width':1080,'height':1920]
+		println mp.getClass().name
+	
+		println mp.width		1080
+		println mp['height']	1920
+	5.方法：方法调用时可以不加参数的括号，可以省略return
+
+
+C.gradle构建脚本基础
+	1.setting文件：一个子工程只有在setting文件中配置了才会被Gradle识别，才会在构建的时候被包含进去
+
+	2.Build文件：每个project都有这个文件，这是project构建的入口
+		a.可以通过subprojects或者subprojects对子项目或者全部项目做一些统一配置，subprojects和subprojects其本质还是方法对项目进行循环遍历传入的闭包参数
+
+	3.创建一个任务
+		a. task customTask1 {
+				doFirst {
+					println 'customTask1:doFirst'
+				}
+				doLast {
+					println 'customTask1:doLast'
+				}
+		   }
+		   这里的task是Project对象的一个方法原型为create(String name,Closure configureClosure)。name是task的名字，configureClosure就是我们后面大括号里的闭包么，最后一个参数是闭包时可以放在括号外面，括号又可以省略，所以就有了上面的简洁写法
+
+		 b. 另外一种创建方法
+		 	tasks.create("customTask2") {
+		 		doFirst {
+					println 'customTask1:doFirst'
+				}
+				doLast {
+					println 'customTask1:doLast'
+				}
+		 	}
+
+	4.任务依赖：通过dependsOn来指定依赖的task，可以依赖多个task
+		task Hello{
+			doLast{
+				println 'Hello'
+			}
+		}
+
+		task World{
+			doLast{
+				println 'World'
+			}
+		}
+		
+		task Main {
+			dependsOn Hello
+			doLast{
+				println 'Main';
+			}
+		}
+		
+		task MultiTask{
+			dependsOn Hello,World
+			doLast {
+				println 'MultiTask'
+			}
+		}
+
+	5.task间通过api控制、交互
+		task ex36Hello {
+			println 'dowLast1'
+		}
+
+		ex36Hello.doFirst {
+			println 'doFirst'
+		}
+		
+		ex36Hello.doLast {
+			println project.hasProperty('ex36Hello')
+			println 'dowLast2'
+		}
+
+	6.自定义属性
+		project和task都允许用户添加额外的自定义属性，要添加额外的属性，通过应用所属对应的ext属性即可，添加之后可以通过ext属性对自定义属性读取和设置，如果要同时添加多个可以使用ext代码块
+		自定义一个project属性：ext.age=18
+		通过代码块同时自定义多个属性：
+		ext {
+			phone = 1334512
+			address = ''
+		}
+		task customProperty {
+			println "年龄是：${age}"
+			println "电话是：${phone}"
+			println "地址是：${address}"
+		}
+		与局部变量相比，自定义属性有更广泛的作用域，只要你能访问这些属性所属的对象，那么这些属性都可以被访问到
+
+		自定义属性还可以作用于sourceset中，这样等同于每种sourceset又多了一个可供配置的属性：
+		sourceSets.all {
+			ext.resourcesDir = null
+		}
+
+		sourceSets {
+			main {
+				resourcesDir = "main/res"
+			}
+			test {
+				resourcesDir = "test/res"
+			}
+		}
+
+D.gradle任务
+	1.分组和描述：分别用group和description赋值
+
+	2.操作符<<等同于doLast
+		语法：task customTask <<{
+		}等价于
+			task (customTask).doLast{
+			}
+
+	3.task执行分析：
+		当我们执行一个Task时候，其实就是执行其拥有的ctions列表，这个列表保存在Task对象实例中的ations成员变量中，其类型是一个List
+		def Task mytask = task customTasktype: CustomTask)
+		mytask.doFirst {
+		    println("task执行之前")
+		}
+		
+		mytask.doLast {
+		    println("task执行之后")
+		}
+		
+		class CustomTask extends DefaultTask{
+		    @TaskAction
+		    def doSelfTask(){
+		        println("执行自己的task")
+		    }
+		}
+		运行结果：
+			:customTask
+			task执行之前
+			执行自己的task
+			task执行之后
+		其中@TaskAction注解标注意思是task本事执行执行的方法
+
+	4.任务排序
+		shouldRunAfter,mustRunAfter
+		调用方法：taskB.shouldRunAfter(taskA)
+
+	5.任务的启用和禁用
+		Task中有enabled属性控制该task是否可以执行默认为true
+
+	6.onlyif断言
+		Task有一个onlyIf方法，他接受一个闭包作为参，如果该闭包返回true则该任务执行，否则跳过
+
+	7.任务规则:
+		tasks.addRule("规则描述，便于调试查找",{
+   			String taskName->
+   				task (taskName) <<{
+   				    println("该任务${taskName}务不存在，请查证后再试")
+   				}
+			})
+			
+		task exTask4 {
+		    dependsOn missTask
+		}
+		如果执行不存在的missTask就会输出上面自定义描述信息
+
+E.Gradle插件
+	1.如何应用一个插件：
+		插件的应用都是通过Project.aply()方法完成的，apply方法有好几种用法，插件也分进制插件和脚本插件
+		1>应用二进制插件：二进制插件就是实现了org.gradle.api.Plugin接口的插件，他们可以有plugin id，
+		apply plugin:'java'
+		应用了java插件到我们的项目，其中'java'就是java插件的plugin id它是唯一的，其实它对应的类型是org.gradle.api.plugins.JavaPlugin,所以通过类型我们也可以使用该插件
+		apply plugin:org.gradle.api.plugins.JavaPlugin
+		而包org.gradle.api.plugins是默认导入的所以可以简写啊:
+		apply plugin:JavaPlugin
+		二进制插件一般都是被打包在一个jar文件里发布的，在发布时候我们可以为其指定plugin id，这个plugin id最好是一个全限定名称避免重复
+
+		2>应用脚本插件：
+		build.gradle中：
+		apply from:'version.gradle'
+
+		task ex52PrintlnTask <<{
+			println "App版本是：${versionName},版本号是：${versionCode}"
+		}
+
+		version.gradle中：
+		ext {
+			versionName = '1.0.0'
+			versionCode = 1
+		}
+		这只是一个脚本，应用脚本插件就是把这个脚本加载进来，和二进制插件不同的是它使用的是from关键字，后面紧跟的是一个脚本文件，可以是本地的，也可以是网络存在的，如果是网络上的话要使用HTTP URL
+
+		3>应用第三方发布的插件：
+		应用第三方发布的二进制插件必须先在buildscript{}里配置其classpath才能使用，比如我们的Android Gradle插件，就属于Android发布的第三方插件，如果要使用我们必须先配置：
+		buildscript {
+			repositories {
+				jcenter()
+			}
+			dependencies {
+				classpath 'com.android.tools.build:gradle:1.5.0'
+			}
+		}
+		buildscript{}块是一个在构建项目之前，为项目进行前期准备和初始化相关配置依赖的地方，配置好以后：
+		apply plugin: 'com.android.application'
+		如果没有配置就会找不到插件
+
+F.Android Gradle插件
+	1.Android Gradle插件应用：
+		android{}是Android插件提供的一个扩展类型，可以让我们自定义Android Gradle工程。compileSdkVersion是编译所依赖的Android SDK的版本，这里是APILevel；buildToolsVersion是构建该android工程所用构建工具的版本
+
+	2.工程示例：
+		buildscript {
+    
+    		repositories {
+    		    google()
+    		    jcenter()
+    		}
+    		dependencies {
+    		    classpath 		'com.android.tools.build:gradle:3.1.3'
+    		    
+		
+    		    // NOTE: Do not place your application 		dependencies here; they belong
+    		    // in the individual module build.gradle 		files
+    		}
+		}
+		
+		apply plugin: 'com.android.application'
+		
+		android {
+		    compileSdkVersion 27
+		    defaultConfig {
+		        applicationId 		"com.example.wilsonhan.gradletest"
+		        minSdkVersion 18
+		        targetSdkVersion 27
+		        versionCode 1
+		        versionName "1.0"
+		        testInstrumentationRunner "android.support.		test.runner.AndroidJUnitRunner"
+		    }
+		    buildTypes {
+		        release {
+		            minifyEnabled false
+		            proguardFiles getDefaultProguardFile('p		roguard-android.txt'), 		'proguard-rules.pro'
+		        }
+		    }
+		}
+
+		dependencies {
+		    implementation fileTree(dir: 'libs', include: 		['*.jar'])
+		    implementation 		'com.android.support:appcompat-v7:27.1.1'
+		    implementation 'com.android.support.constraint:		constraint-layout:1.1.2'
+		    testImplementation 'junit:junit:4.12'
+		    androidTestImplementation 		'com.android.support.test:runner:1.0.2'
+		    androidTestImplementation 'com.android.support.		test.espresso:espresso-core:3.0.2'
+		}
+		Android Gradle工程的配置，都是在android{}中，这是唯一的一个入口。通过它，可以对Android Gradle工程进行自定义的配置，其具体实现是com.android.build.gradle.AppExtension,是Project的一个扩展。
+
+	3. compileSdkVersion
+		compileSdkVersion是配置我们编译Android工程的SDK，设置方法：
+			compileSdkVersion 23
+			compileSdkVersion 'android-23'
+			android.compileSdkVersion = 23
+			android.compileSdkVersion = 'android-23'
+		以上四种方法等价
+
+	4.buildToolsVersion
+		buildToolsVersion表示我们使用的Android构建工具的版本，设置方法：
+		buildToolsVersion ’23.0.1‘
+		android.buildToolsVersion = ‘23.0.1’
+
+	5.defaultConfig
+		defaultConfig是默认的配置，它是一个ProductFlavor。ProductFlavor允许我们根据不同的情况同时声称多个不同的APK包，如果不针对我们自定义的ProductFlavor单独配置的话，会为这个ProductFlavor使用默认的defaultConfig的配置
+		1>例子中的applicationId是配置我们的包名
+		2>minSdkVersion是最低支持的Android系统的API Level
+		3>targetSdkVersion表明我们是基于哪个Android版本开发的
+		4>versionCode表明我们的App应用内部版本号，一般用于App升级
+		5>versionName表明我们的App应用的版本名称，用户可以看到，就是我们发布的版本
+		以上所有配置对应的都是ProductFlavor类里的方法或者属性。
+
+	6.buildTypes
+		buildTypes和sourceSet一样是一个域对象，sourceSet里面有main，test等，buildTypes里面有release、debug等。
+		release就是一个BuildType，minifyEnabled是否为该构建类型启用混淆；proguardFiles，当我们启用混淆时，所使用的proguard的配置文件可以通过它配置我们如何进行proguard混淆，它对应的BuildType的proguardFiles方法，可以接受一个可变参数，所以我们同时可以配置多个配置文件：
+		proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+		getDefaultProguardFile时Android扩展的一个方法，可以获取AndroidSDK目录下默认的proguard配置文件，在android-sdk/tools/proguard/目录下，文件名就是我们传入的参数名字。
+
+G.自定义Android Gradle工程
+	1.defaultConfig默认配置
+	一个基本的defaultConfig配置如下：
+	android {
+    	compileSdkVersion 27
+    	defaultConfig {
+    	    applicationId 	"com.example.wilsonhan.gradletest"
+    	    minSdkVersion 18
+    	    targetSdkVersion 27
+    	    versionCode 1
+    	    versionName "1.0"
+    	    testInstrumentationRunner"android.support.test	.runner.AndroidJUnitRunner"
+    	}
+    	//......
+	}
+		1>applicationId：是ProductFlavor的一个属性，用于指定生成的App的包名，默认为null，在构建的时候会从AndroidManifest.xml文件中读取，对应其中的package属性值
+
+		2>minSdkVersion:是ProductFlavor的一个方法，指定我们的App最低支持的Android操作系统版本，对应Android SDK的API LEVEL，接受一个整数或字符串。
+
+		3>targetSdkVersion：用于配置基于哪个Android SDK开发，可选值和minSdkVersion一样，不配置也是从AndroidManifest.xml中找
+
+		4>versionCode：是ProductFlavor的一个属性，用于配置Android App的内部版本号，整数值，不配置也是从AndroidManifest.xml中找
+
+		5>versionName：和versionCode类似，是ProductFlavor的一个属性，用于配置Android App的版本名称。供外部查看使用
+
+		6>testApplicationId：用于配置测试App的包名，默认情况下是applicationId+".test"。一般情况下默认即可，是ProductFlavor的一个属性
+
+		7>testInstrumentationRunner：用于配置单元测试时使用的Runner，默认使用的是android.test.InstrumentationTestRunner,如果你想使用自定义的Runner，修改这个值即可，他也是一个属性
+
+		8>signingConfig：配置默认的签名信息，对生成的App签名。它是一个SigningConfig，也是ProductFlavor的一个属性，可以直接对其进行配置。
+
+		9>progardFile：用于配置App Proguard混淆所使用的ProGuard配置文件。它是ProductFlavor的一个方法，接受一个文件作为参数。
+
+		10>proguardFiles：这个也是配置ProGuard的配置文件，可以同时接受多个配置文件
+
+	2.配置签名信息
+		对于签名信息的配置，Android Gradle为我们提供了非常简便的方式：
+		android {
+    		compileSdkVersion 27
+    		buildToolsVersion '27.0.3'
+    		signingConfigs {
+        
+        		release {
+        		    keyAlias 			'keyAlias'
+        		    keyPassword 		'keyPassword'
+        		    storeFile file(		'storeFile'
+        		    storePassword 		'storePassword'
+        		}
+        		debug {
+					keyAlias 			'keyAlias'
+        		    keyPassword 		'keyPassword'
+        		    storeFile file(		'storeFile'
+        		    storePassword 		'storePassword'
+        		}
+    		}
+
+    		defaultConfig {
+        	applicationId "com.example.wilsonhan.gradletest"
+        	minSdkVersion 18
+        	targetSdkVersion 27
+        	versionCode 1
+        	versionName "1.0"
+        	testInstrumentationRunner 	"android.support.test.runner.AndroidJUnitRunner"
+        	signingConfig signingConfigs.debug
+    		}
+    	}
+    	或者 buildTypes {
+        	debug {
+        	    signingConfig signingConfigs.debug
+        	}
+        	release {
+        	    //加载开发者签名
+        	    signingConfig signingConfigs.release
+    		}
+   	 	}
+
+   	 3.构建应用类型
+   	 	可以在buildTypes中添加新的构建类型，下面介绍一些BuildType常用的配置
+   	 	1>applicationIdSuffix：是BuildType的一个属性，用于配置基于默认applicationId的后缀，比如我们在defaultConfig中配置的applicationId为com.test.app。我们在debug的BuildType中指定的applicationIdSuffix为.debug，那么构建生成的debug apk的包名就是com.test.app.debug
+
+   	 	2>debuggable：也是BuildType的一个属性，用于配置是否生成一个可供调试的apk。其值可以为true或者false
+
+   	 	3>jniDebuggable：和debuggable类似，也是BUildType的一个属性，用于配置是否生成一个可供调试jni代码的apk
+
+   	 	4>minifyEnabled：也是BuildType的一个属性，用于配置该BuildType是否启用proguard混淆
+
+   	 	5>multiDexEnabled：也是BuildType的一个属性，用于配置该BuildType是否启用自动拆分多个Dex的功能，一般应用程序中代码太多，超过了56635个方法的时候。拆分为多个Dex的处理
+
+   	 	6>proguardFile：是BuildType的一个方法用于配置Proguard混淆使用的配置文件。
+
+   	 	7>proguardFiles：是BuildType的一个方法，用于配置proguard混淆使用的配置文件，可以同时配置多个Proguard配置文件
+
+   	 	8>shrinkResources：是BuildType的一个属性，用于配置是否自动清理未使用的资源
+
+   	 	9>signingConfig：配置该BuildType使用的签名配置。
+
+   	 4.启用zipalign优化
+   	 	zipalign是Android为我们提供的一个整理优化apk文件的工具，它能提高系统和应用的运行效率，更快地读写apk中的资源，降低内存的使用。
+   	 	要为release模式开启zipalign优化只需要如下配置：
+   	 	android {
+   	 		buildTypes {
+   	 			release {
+   	 				zipAlignEnabled true
+   	 			}
+   	 			debug {
+
+   	 			}
+   	 		}
+   	 	}
+
+H.Android Gradle高级自定义
+	1.批量修改生成的apk文件名：
+	要修改生成的apk文件名，就要修改Android Gradle打包的输出。Android对象为我们提供了三个属性，applicationVariants（仅仅适用于Android应用Gradle插件），libraryVariants（仅仅适用于Android库Gradle插件），testVariants（以上两种Gradle插件都适用）。
+	以上三个属性返回的都是DomainObjectSet对象集合，里面的元素分别是ApplicationVariant、LibraryVariant和TestVariant。ApplicationVariant代表Google渠道的release包，也可以代表dev开发用的debug包。
+	下面给出批量修改apk文件名的例子：
+	定义releaseTime函数：
+	def releaseTime(){
+		def date = new Date();
+		def formatDate = date.format('yyyyMMdd')
+		return formatDate
+	}
+	在android标签中：(Gradle3.0之前版本)
+	applicationVariants.all { variant ->
+		variant.outputs.each { output ->
+			if(output.outputFile != null && output.outputFile.name.endsWith('.apk')){
+				if('release'.equals(variant.buildType.name)){
+					def fileName = "${variant.versionCode}-${variant.versionName}-${releaseTime()}.apk"
+                    def apkFile=new File(
+                    	output.outputFile.getParent(),
+                    	fileName
+                    )
+                    output.outputFile = apiFile
+				}
+			}
+		}
+	}
+	在android标签中：(Gradle3.0之后版本)
+	applicationVariants.all { variant ->
+		variant.outputs.all { output ->
+			if(output.outputFile != null && output.outputFile.name.endsWith('.apk')){
+				if('release'.equals(variant.buildType.name)){
+					def fileName = "${variant.versionCode}-${variant.versionName}-${releaseTime()}.apk"
+                    outputFileName = fileName
+				}
+			}
+		}
+	}
+	applicationVariants是一个DomainObjectCollection集合，我们可以通过all方法遍历，遍历的每一个variant都是一个生成的产物。针对示例共有googleRelease和googleDebug两个产物，所以遍历variant共有googleRelease和googleDebug两个。
+	applicationVariants中的variant都是ApplicationVariant，通过查看源码可以知道，它有一个outputs作为他的输出。每一个ApplicationVariant至少有一个输出，也可以有多个，所以这里的outputs属性是一个List集合、我们再遍历它，如果他的名字是以.apk结尾的话，那么就是我们要修改的apk名字了。
+
+	2.动态生成版本信息
+	一般版本号分三部分：major.minor.patch,第一个是主版本号，第二个是副版本号，第三个是补丁号。即常见的1.0.0
+	传统的版本号是写在build.gradle中，修改不方便，而且容易出错。
+		1>分模块的方式：Android支持基于文件的模块化，即apply from
+		新建一个version.gradle文件，用于专门存放版本
+		version.gradle:
+			ext {
+				appVersionCode = 1
+				appVersionName = '1.0.0'
+			}
+		ext{}块表明要为当前project创建扩展属性，以供其他脚本引用
+		然后在build.gradle中引入文件：apply from: 'version.gradle'
+		就可以在文件中任何位置使用appVersionCode和appVersionName
+
+		2>从属性文件中动态获取
+			a.在项目目录下新建一个version.properties的属性文件
+			b.把版本名称分成三部分major.minor.patch,版本号分成一部分number,然后在version.properties中新增4个KV键值对，其key就是我们上面份好的，value是对应的值
+			c.在build.gradle里新建两个方法，用于读取该属性文件，获取对应key的值，然后把major.minor.patch这三个key拼接成版本名称，number用于版本号
+			def versionProperties = new Properties()
+			versionProperties.load(new FileInputStream(getRootDir().path + "/version.properties"))
+			println(versionProperties['major'] + versionProperties['minor'] + versionProperties['patch'])
+    		println(versionProperties['number'])
+    		d.以上就达到了获取版本信息的目的
+
+    3.动态配置AndroidManifest文件
+    	例如Manifest文件中的Umeng多渠道打包配置：
+    	<meta-data android:value="Channel ID" android:name="UMENT_CHANNEL"/>
+    	例子中的Channel Id我们要替换成不同渠道的名称，比如google、baidu、miui等，对于这种情况，Android Gradle提供了非常便捷的方法让我们来替换AndroidManifest文件中的内容，他就是manifestPlactholder、Manifest占位符。
+    	ManifestPlaceholders是ProductFlavor的一个属性，是一个Map类型，所以我们可以同时配置很多歌占位符
+    	android {
+    		compileSdkVersion 23
+    		buildToolsVersion "23.0.1"
+
+    		productFlavors {
+    			google {
+    				manifestPlaceholders.put("UMENT_CHANNEL","google")
+    			}
+    			baidu {
+    				manifestPlaceholders.put("UMENT_CHANNEL","baidu")
+    			}
+    		}
+    	}
+    	例子中我们定义了两个渠道Google和Baidu，并且配置了它们的manifestPlaceholders，留意我们的使用方式，他们的key都是一样的，是UMENG_CHANNEL，这个key就是我们在AndroidManifest文件中的占位符变量。在构建的时候，他会把AndroidManifest文件中所有占位符变量为UMENG_CHANNEL的内容（即${UMENG_CHANNEL}）替换为manifestPlaceholders中对应的value值。
+    	假如友盟渠道名和我们在Android Gradle中配置的ProductFlavor名字一样的话，可以通过迭代productFlavors批量进行修改。
+    	android {
+    		compileSdkVersion 23
+    		buildToolsVersion "23.0.1"
+
+    		productFlavors {
+    			google {
+    			}
+    			baidu {
+    			}
+    		}
+
+    		productFlavors.all { flavor ->
+    			manifestPlaceholders.put("UMENG_CHANNEL",name)
+    		}
+    	}
+    	通过all函数遍历每一个ProductFlavor，然后把它们的name作为友盟中的渠道的名字。manifestPlaceholders不仅可以在productFlavors中配置还可以buildTypes中配置
+
+    4.自定义BuildConfig
+    	BuildConfig是AndroidGradle构建脚本在编译后生成的不能修改，一般情况下为这个样子：
+    	/**
+ 		* Automatically generated file. DO NOT MODIFY
+ 		*/
+		package com.example.wilsonhan.gradletest;
+		
+		public final class BuildConfig {
+		  public static final boolean DEBUG = 		Boolean.parseBoolean("true");
+		  public static final String APPLICATION_ID = 		"com.example.wilsonhan.gradletest";
+		  public static final String BUILD_TYPE = "debug";
+		  public static final String FLAVOR = "";
+		  public static final int VERSION_CODE = 1;
+		  public static final String VERSION_NAME = "1.0";
+		}
+		这些差不多就是我们当前构建渠道的基本应用信息。他们都是常量。
+		Android Gradle提供了buildConfigField(String type,String name,String value)让我们可以添加自己的常量到BuildConfig中。
+		第一个参数type是要生成字段的类型，第二个参数name是要生成字段的常量名字，第三个参数value是要生成字段的常量值。最终他们生成的字段格式如下：
+		<type> <name> = <value>
+		假设我们有baidu和google两个渠道，发布时候有两个渠道包，打开百度包是百度首页，打开google包是google首页，我们就可以添加一个字段WEB_URL，在baidu渠道包下它的值时http://www.baidu.com，在google渠道下它的值时http://www.google.com注意下面最后的url引号
+		productFlavors {
+			google {
+				buildConfigField 'String','WEB_URL','"http://www.google.com"'
+			}
+			baidu {
+				buildConfigField 'String','WEB_URL','"http://www.baidu.com"'
+			}
+		}
+		这里需要注意，value这个参数，是单引号中间的部分。尤其对于String类型的值，里面的双引号一定不能省略，不然就会报错。value的值是什么就写什么，要原封不动的写在单引号里
+
+	5.动态添加自定义的资源
+		这里所说的资源只针对res/values类型资源，实现这一功能的事resValue方法，它在BuildType和ProductFlavor这两个对象中都存在。以ProductFlavor中的resValue为例。
+		productFlavors {
+			google {
+				resValue 'string','channel_tips','谷歌渠道欢迎你'
+			}
+			baidu {
+				resValue 'string','channel_tips','百度渠道欢迎你'
+			}
+		}
+
+	6.java编译选项
+		Android Gradle提供了compileOptions方法，它接受一个CompileOptions类型的闭包作为参数。
+		compileOptions {
+			encoding = 'utf-8'
+			sourceCompatibility = JavaVersion.VERSION_1_6
+			targetCompatibility = JavaVersion.VERSION_1_6
+		}
+		sourceCompatibility是配置Java源代码的编译级别
+		targetCompatibility是配置生成的字节码的版本
+
+	7.adb操作选项设置
+		Android Gradle提供了adbOptions方法，该方法接收AdbOptions类型的闭包作为参数
+		adbOptions {
+			timeOutInMs 5*1000
+			installOptions '-r','-s'
+		}
+		timeOutInMs配置超时时间，单位毫秒
+		installOptions用来设置adb install安装这个操作的设置项，比如安装到sd还是替换安装等，adb install有l,r,t,s,d,g六个选项。-l锁定应用程序，-r替换已存在的应用程序即强制安装，-t允许测试包，-s把应用程序安装到sd卡上，-d允许进行降级安装，-g为该应用授予所有运行时权限。
+
+	8.dex选项配置
+		Android中的Java源代码被编译成class字节码之后，在打包apk的时候又被dx命令优化成Android虚拟机可执行的DEX文件。对于这些生成DEX文件的过程和处理，Android Gradle插件都帮我们处理好了，Android Gradle插件会调用SDK中的dx命令进行处理。其实dx命令只是一个脚本，它调用的还是Java编写的dx.jar库，是java程序处理的，所以当内存不足时，会报java异常信息，默认情况下dx分配的内存时1G。但是我们可以通过“-J”参数配置。
+		在Android Gradle中我们通过dexOptions来配置dex选项，接收一个DexOptions类型的闭包，DexOptions可配置项包括：
+		
+		1> incremental属性，这是一个boolean类型的属性，用来配置是否开启dx的增量模式，默认为false，表示不启用。增量模式虽然速度更快，但是目前还有很多限制，要启用设置incremental为true即可：
+		android {
+			dexOptions {
+				incremental true
+			}
+		}
+		
+		2>javaMaxHeapSize属性，它是配置执行dx命令时为其分配的最大堆内存，主要用来解决执行dx时内存不够用情况。它接收一个字符串格式的参数，比如1024MB或者1GB。
+		android {
+			dexOptions{
+				javaMaxheapSize '4g'
+			}
+		}
+		
+		3>jumboMode属性，boolean类型，它可以用来配置是否开启jumbo模式。项目比较大，代码太多，函数超过了65535个就需要开启该模式才能构建成功
+		android {
+			dexOptions {
+				jumboMode true
+			}
+		}
+		
+		4>preDexLibraries属性，boolean类型，用来配置是否预执行dex Libraries库工程，开启后会大大提高增量构建的速度，不过这可能会影响clean构建的速度。默认为true，是开启的。有时候我们需要关闭这个选项，比如我们需要使用dx的--multi-dex选项生成多个dex，这导致和库工程有冲突的时候，需要将该选项设置成false。
+		
+		5>threadCount属性，它是integer类型，用来配置Android Gradle运行dx命令时使用的线程数量，适当的线程数量可以提高dx的效率：
+		android {
+			dexOptions {
+				threadCount 2
+			}
+		}
+
+	9.突破65535方法限制
+		Android中的Java源代码被编译成class字节码之后，在打包apk的时候又被dx命令优化成Android虚拟机可执行的DEX文件。这些dex文件就是优化过的、Dalvik虚拟机可以执行的文件，Dalvik虚拟机在执行DEX文件的时候，它使用了short这个类型来索引DEX文件中的方法，这就意味着单个DEX文件可以被定义的方法书最多只能是65535个。
+		我们注意到单个DEX文件的方法超过65535个出错，那么我们解决的方法就是生成多个DEX文件，使每个DEX文件的方法数量都没有超过65535。
+		Android官方给出的解决该问题的方法就是Multidex。对于Android5.0之后的版本，使用了ART的运行时方式，可以天然支持App有多个DEX文件。ART在安装App的时候执行预编译，把多个DEX文件合并成一个oat文件执行。对于Android5.0之前的版本，Dalvik虚拟机限制每个App智能有一个class.dex要使用它们，就得使用Android为我们提供的Multidex库，着重讲解Android5.0之前的版本处理。
+		首先需要升级Android Build Tools和Android Sup port Repository到21.1，这是支持Multidex功能的最低支持版本。
+		在项目中使用Multidex，首先要修改Gradle build配置文件，启用Multidex，并同时配置Multidex需要的Jar依赖：
+		android {
+			defaultConfig {
+				multiDexEnabled true
+			}
+		}
+
+		dependencies {
+			compile fileTree(dir:'libs',include:['*.jar'])
+			compile 'com.android.support:multidex:1.0.1'
+		}
+		通过multiDexEnabled配置来决定是否开启Multidex，这是一个boolean类型的属性，可以在defaultConfig、buildType或者productFlavor这些闭包块里使用，以达到我们根据自己的业务，分别配置的目的。
+		配置好后，开启了Multidex会让我们的方法多于65535个的时候生成多个DEX文件，其名字为classes.dex,classes(...n).dex，所以要想达到程序可以正常运行的目的，也要让虚拟机把其他几个生成的classes加载进来。要想做到这个必须在程序的入口Application中控制。
+		Multidex提供了现成的Application，其名字是MultiDexApplication，如果我们没有自定义的Application的话，直接使用MultiDexApplication即可，在Manifest清单中配置：
+		<application
+		 	...
+		 	android:name="android.support.multidex.MultiDexApplication">
+		 	...
+		 </application>
+		 如果有自定义的Application，并且是直接继承Application，只需要把继承改为MultiDexApplication即可。
+		 如果自定义的Application是继承其他第三方提供的Application，就不能改变继承，我们可以通过重写attachBaseContext方法实现：
+		 @override
+		 protected void attachBaseContext(Context base) {
+		 	super.attachBaseContext(base);
+		 	MultiDex.install(this);
+		 }
+		 重写attachBaseContext方法的时候，调用MultiDex.install(this)即可，和我们继承MultiDexApplication的效果一样。
+		 虽然有了解决65535问题的方法，但还是尽量避免我们工程中的方法超过65535，要达到这个目的，首先不能滥用第三方库，如果要引用，最好要自己进行精简。精简之后还要使用ProGuard减小DEX的大小，因为DEX安装到机器上的过程比较复杂，尤其是有第二个DEX文件并且过大的时候可能会造成ANR。还有Dalvik linearAlloc的限制，尤其在Android2.2和2.3版本上，只有5MB，到4.0的时候升级到8MB。
+
+	10.自动清理未使用的资源
+		第一，靠开发人员手动清理，第二使用Android Lint，他能检测出哪些资源没有被使用，然后按照检测出来的列表进行清理，这种方法需要隔一段时间就清理一次，不然就可能会有无用的资源遗留，做不到及时性。以上两个方式还有一个不能解决的问题，就是第三方库里的资源问题。如果第三方库里含有无用资源，那么这两种方法都不能清理。
+		Android Gradle提供了Resource Shrinking来解决上面的问题，他是一种在构建时，打包成apk之前，会检测所有资源，看看是否被引用，如果没有，那么这些资源就不会被打包到apk中，因为在这个过程中，Android Gradle构建系统会拿到所有的资源，不管是项目自己的还是第三方的，所以可以控制哪些资源可以被打包，能解决第三方不使用的资源取消的问题。
+		Resource Shrinking要结合着Code Shrinking一起使用，Code Shrinking就是ProGuard，也就是我们要启用minifyEnabled，是为了缩减代码的。在gradle中配置Resource Shrinking：
+		android {
+			buildTypes {
+				release {
+					minifyEnabled true
+					shrinkResources true
+					proguardFiles getDefaultProguardFile('proguard-android.txt'),'proguard-rules.pro'
+				}
+			}
+		}
+		启用Resource Shrinking是通过调用BuildType的shrinkResources来设置的，只要给这个方法传递一个true参数，就可以启用，默认情况是不启用。
+		自动清理存在一个问题，会误删代码，尤其是使用了反射去引用资源文件，Android Gradle区分不出来，针对这种情况，Android Gradle提供了keep方法来配置哪些资源不被清理
+		keep方法使用，我们需要新建一个xml文件来配置，这个文件是res/raw/keep.xml，然后通过tools:keep属性来配置。这个tools:keep接受一个以逗号（,）分割的配置资源列表，并且支持星号（*）通配符。此外对于res/raw/keep.xml这个文件不用担心会影响程序大小，Android Gradle构建系统最终打包的时候会清理它，不会打进apk中除非在代码中通过R.raw.keep引用了它。以下是示例：
+		<?xml version="1.0" encoding="utf-8"?>
+		<resources xmlns:tools="http://schemas.android.com/tools"
+    	tools:keep="@layout/user*_c,@layout/user*_b" />
+    	keep.xml还有一个属性是tools:shrinkMode,用于配置自动清理资源的模式，默认是safe，是安全的,这种情况下，Android Gradle可以识别代码中类似于如下示例的引用：
+    	getResources().getIdentifier("unused","drawable",getPackagename());
+    	这类代码也被构建系统认为是使用了资源文件，不会被清理。如果把清理模式改为strict，那么就没有办法识别了，这个资源会被认为没有被引用，也会被清理掉。
+    	除了shrinkResources之外，Android Gradle还为我们提供了一个resConfigs，它属于ProductFlavor的一个方法，可以让我们配置哪些类型的资源才被打包到apk中，比如只有中文的资源，只有hdpi格式的图片等，这是非常重要的。比如我们只需要中文的语言，支持hdpi的图片就行了，这时就可以通过resConfigs配置：
+    	android {
+    		defaultConfig {
+    			resConfigs 'zh'
+    		}
+    	}
+    	其实这个resConfig有3种配置方法，一般常用的是resConfigs方法，因为可以同时指定多个配置。也可以使用resConfig来指定一个配置，一次添加一个，如果要添加多个，要么调用多次。
+
+I.Android Gradle多项目构建
+	1.Android项目区别：
+		Android的项目一般分为库项目、应用项目、测试项目，Android Gradle根据这些项目分别对应有3种插件，com.android.library、com.android.application、com.android.test。
+		一般一些具有公用特性的类、资源等可以抽象成一个库工程，这样他们就可以被其他项目引用；还有一种比如我们的工程非常复杂，我们可以根据业务，把工程分成一个个的库项目，然后通过一个主动的应用项目引用他们，组合起来就是最终的产品，一个复杂的App了。
+		应用项目，一般只有一个，他可以打包成我们可发布的apk。应用项目也会有多个。
+		测试项目是我们为了对App进行测试而创建的，比如测试Activity、Service、Application等，它是Android基于JUnit提供的一种测试Android项目的框架方法，这让我们可以方便对Android App进行测试，保证质量。
+
+	2.Android多项目设置：
+		在Gradle中就可以通过文件夹组织你不同的项目，最终只要在settings.gradle里配置好这些项目即可。比如如下项目结构：
+		MyProject/
+			+ app/
+			+ libraries/
+				+ lib1/
+				+ lib2/
+		上面程序中一个App项目，两个库项目lib1和lib2都放在libraries文件夹下，也就是说这里有3个项目：
+		:app
+		:libraries:lib1
+		:libraries:lib2
+		其实严格地说应该是4个项目，还有一个根项目MyProject。根项目会有一个settings.gradle配置文件，每个项目里都有一个build.gradle文件，所以它们的结构为：
+		MyProject/
+			settings.gradle
+			app/
+				build.gradle
+			libraries/
+				lib1/
+					build.gradle
+				lib2/
+					build.gradle
+		这就是一个完成的工程了，看一下settings.gradle配置文件：
+		include ':app',':libraries:lib1',':libraries:lib2'
+		就是指定这几个项目，有时候如果项目的路径太多，我们可以用如下方法指定配置：
+		include ':example'
+		project(':example').projectDir = new File(rootDir,'chapter/example')
+		通过如上方法我们直接指定项目的目录即可。
+
+	3.库项目引用和配置
+		Android库项目的引用和gradle的其他引用是一样的，都是通过dependencies实现：
+		dependencies {compile project (':libraries:lib1')}
+		应用Android库项目是引用的一个库项目发布出来的aar包，默认情况下，Android库项目发布出来的包都是release版本的，当然可以通过配置来改变它，比如改成默认发布的，这就是debug版本的
+		android {
+			defaultPublishConfig "debug"
+		}
+		上面代码就改成发布的是debug版本的aar包了，可以通过上面的方法配置不同的发布版本，只要这个名字是合法的，也就是Assemble任务能够打包出来的aar包，比如配置了多个flavor，那么发布的时候就可以针对不同的flavor+buildtype配置：
+		android {
+			defaultPublishConfig "flavorlDebug"
+		}
+		如果想同时发布多个版本的aar包以供不同的项目引用，我们需要针对不同的版本引用不同的发布的aar包。默认情况下可以同时发布多个aar包，我们可以开启：
+		android{
+			publishNonDefault true
+		}
+		上述程序就是告诉Android Gradle插件，我们这个库工程要同时发布不同的aar包，这时候Android Gradle就会生成多个aar包以供其他项目引用，下面看一下我们怎么分别引用他们：
+		dependencies {
+			flavor1Compile project(path: ':lib1',configuration: 'flavor1Release')
+			flavor2Compile project(path: ':lib1',configuration: 'flavor2Release')
+		}
+		对于Lib这个库项目，我们先配置成可以同时发布多个aar包，然后在其他引用工程里面做如上示例的引用，比如flavor1这个渠道包就引用flavor1这个渠道对应的lib1库的release aar包；flavor2这个渠道就引用flavor2这个渠道对应的lib1库的release aar包
+
+J.Android Gradle多渠道构建
+	1.多渠道构建的基本原理
+		再Android Gradle中，定义了一个Build Variant的概念，一个Build Variant=Build Type+Product Flavor，Build Type就是我们构建的类型，如release和debug；Product Flavor就是我们构建的渠道，如Google、Baidu等。Product Flavor是我们多渠道构建的基础，如何新增一个Pfoduct Flavor：
+		android {
+			productFlavors{
+				google{}
+				baidu{}
+			}
+		}
+		Android Gradle为我们提供了productFlavors方法来增加不同的渠道，他接受域对象类型的productFlavor闭包作为其参数。所以我们可以为productFlavors{}闭包添加很多的渠道，每一个都是一个ProductFlavor类型的渠道。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
