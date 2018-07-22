@@ -766,6 +766,118 @@ J.Android Gradle多渠道构建
 		}
 		Android Gradle为我们提供了productFlavors方法来增加不同的渠道，他接受域对象类型的productFlavor闭包作为其参数。所以我们可以为productFlavors{}闭包添加很多的渠道，每一个都是一个ProductFlavor类型的渠道。
 
+	2.多渠道构建定制
+		多渠道的定制，其实就是对Android Gradle插件的ProductFlavor的配置，通过配置ProductFlavor达到灵活地控制每一个渠道的目的。
+
+		1>applicationId
+			它是ProductFlavor的属性，用于设置改渠道的包名	，如果你的App想为该渠道设置特别的包名，可以使用	applicationId这个属性进行设置。
+			android {
+				productFlavors {
+					google {
+						applicationId "org.flysnow.	app.example.google"
+					}
+				}
+			}
+			以上就可以为google这个渠道设置其特有的包名，这	样打包的时候Google渠道使用的是org.flysnow.a	pp.example.google这个包名，而其他渠道使用的	是android下defaultConfig下的applicationId	的值。
+
+		2>consumerProguardFiles
+			既是属性也有一个同名的方法，他只对Android库项目有用。当我们发布库项目生成一个aar包的时候，使用consumerProguardFiles配置的混淆文件列表也会被打包到aar里一起发布，这样当应用项目引用这个aar包，并且启用混淆的时候，会自动使用aar包里的混淆文件对aar包里的代码进行混淆，这样我们就不用对该aar包进行混淆配置了：
+			android {
+				productFlavors {
+					google {
+						consumerProguardFiles 'proguard-rules.pro','proguard-android.txt'
+					}
+				}
+			}
+
+		3>manifestPlaceholders
+
+		4>multiDexEnabled
+
+		5>proguardFiles
+
+		6>signingConfig
+
+		7>testApplicationId
+			一般我们会对Android进行单元测试，这个单元测试有自己的专门的apk测试包。testApplicationId是用来适配测试包的包名，他的使用和applicationId一样：
+			android {
+				productFlavors {
+					google {
+						testApplicationId "org.flysnow.example.test"
+					}
+				}
+			}
+			一般的testApplicationId的值为App的包名+.test。
+
+		8>testFunctionalTest和testHandleProfiling
+			boolean型属性，testFunctionalTest表示是否为功能测试，testHandleProfiling表示是否启用分析功能：
+			android {
+				productFlavors {
+					testFunctionalTest true
+					testHandleProfiling true
+				}
+			}
+			它们主要用来控制测试包生成的AndroidManifest.xml，因为他们最终的配置还要体现在AndroidManifest.xml文件中的instrumentation标签的配置上。
+
+		9>testInstrumentationRunner
+			用来配置运行测试使用的Instrumentation Runner的类名，是一个去路径的类名，而且必须是android.app.Instrumentation的子类。一般情况下，我们使用android.test.InstrumentationTestRunner,当然也可以自定义：
+			android {
+				productFlavors {
+					google {
+						testInstrumentationRunner 'android.test.InstrumenatationTestRunner'
+					}
+				}
+			}
+
+		10>testInstrumentationRunnerArguments
+			这个是配合上一个属性用的，用来配置testInstrumentation Runner使用的参数，其实最终使用的都是adb shell am instrument这个命令。其中的参数就是我们使用-e标记指定的那些，所以这里使用testrumentationRunnerArguments参数都会被转换传递给am instrument这个命令使用，也就是转为-e key value这种方式：
+			android {
+				productFlavors {
+					google {
+						testInstrumentationRunnerArguments.put ("coverage","true");
+					}
+				}
+			}
+
+		11>versionCode和versionName
+			配置渠道的版本号和版本名
+
+		12>useJack
+			boolean用于标记是否启用jack和jill这个全新的高性能的编译器，默认为false
+
+		13>dimension
+			dimension是productFlavor的一个属性，接受一个字符串作为该ProductFlavor的维度。可以简单理解为对ProductFlavor进行分组，比如free和paid可以认为他们都是属于版本（version）的，而x86和arm是属于架构（abi），这样就把他们分成两组。而dimension接受的参数就是我们分组的组名，也是纬度名称。纬度名称不是随便指定的，我们在使用它们之前，必须要先声明，折合Java的变量声明差不多，要先定义好才能使用，使用Android对象的flavorDimensions方法声明
+			flavorDimensions是我们使用android{}里的方法，他和productFlavors{}是平级的，一定要先使用flavorDimensions声明纬度，才能在ProductFlavor中使用：
+			该方法可以接受一个可变得字符串类型的参数，所以我们可以同时制定多个维度，但是一定要记住，这些纬度是有顺序的，是有优先级的。第一个参数的优先级最大，其次是第二个，以此类推，所以声明之前一定要根据自己的需求指定好顺序：
+			android {
+				flavorDimensions "abi","version"
+			}
+			如上例子，最后生成的variant（构建产物）会被如下几个productFlavor对象配置。
+			（1）Android里的defaultConfig配置
+			（2）abi维度的ProductFlavor，被dimension配置标记为abi的ProductFlavor。
+			（3）version维度的ProductFlavor，被dimension配置标记为version的ProductFlavor。
+			维度的优先级很重要，高优先级的flavor会替换掉地优先级的资源、代码、配置等，在例子中，优先级为abi>version>defaultConfig，声明维度之后可以在ProductFlavor中使用：
+			android {
+				flavorDimensions "abi","version"
+				productFlavors {
+					free {
+						demension 'version'
+					}
+					paid {
+						dimension 'version'
+					}
+					x86 {
+						dimension 'abi'
+					}
+					arm {
+						dimension 'abi'
+					}
+				}
+			}
+			通过dimension指定ProductFlavor所属的维度，Android Gradle会为我们生成相应的Task、SourceSet、Dependencies等，之前我们说一个构建产物（variant）= BuildTyped+ProductFlavor，现在ProductFlavor这个维度又被我们通过dimension细化分组，所以就多了一些维度，现在构建产物（variant）= BuildType+Abi+Version了
+
+	3.提高多渠道构建的效率
+		
 
 
 
