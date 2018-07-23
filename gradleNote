@@ -123,7 +123,7 @@ C.gradle构建脚本基础
 		
 		ex36Hello.doLast {
 			println project.hasProperty('ex36Hello')
-			println 'dowLast2'
+			println 'doLast2'
 		}
 
 	6.自定义属性
@@ -386,13 +386,13 @@ G.自定义Android Gradle工程
     		}
 
     		defaultConfig {
-        	applicationId "com.example.wilsonhan.gradletest"
-        	minSdkVersion 18
-        	targetSdkVersion 27
-        	versionCode 1
-        	versionName "1.0"
-        	testInstrumentationRunner 	"android.support.test.runner.AndroidJUnitRunner"
-        	signingConfig signingConfigs.debug
+        		applicationId "com.example.wilsonhan.gradletest"
+        		minSdkVersion 18
+        		targetSdkVersion 27
+        		versionCode 1
+        		versionName "1.0"
+        		testInstrumentationRunner 	"android.support.test.runner.AndroidJUnitRunner"
+        		signingConfig signingConfigs.debug
     		}
     	}
     	或者 buildTypes {
@@ -404,6 +404,30 @@ G.自定义Android Gradle工程
         	    signingConfig signingConfigs.release
     		}
    	 	}
+   	 	示例：
+   	 	// Initialize a new Properties() object called keystoreProperties.
+		def keystoreProperties = new Properties()
+		// load keystore properties file from root filesystem
+		keystoreProperties.load(new FileInputStream("/opt/dereleasekey/declient.properties"))
+		signingConfigs {
+        	debug {
+        	}
+        	release {
+        	    keyAlias keystoreProperties['keyAlias']
+        	    keyPassword keystoreProperties['keyPassword']
+        	    storeFile file(keystoreProperties['storeFile'])
+        	    storePassword keystoreProperties['storePassword']
+        	}
+    	}
+    	buildTypes {
+        	debug {
+        	    buildConfigField "boolean", "LOG_DEBUG", "true"
+        	}
+        	release {
+        	    //加载开发者签名
+        	    signingConfig signingConfigs.release
+        	}
+    	}
 
    	 3.构建应用类型
    	 	可以在buildTypes中添加新的构建类型，下面介绍一些BuildType常用的配置
@@ -876,7 +900,110 @@ J.Android Gradle多渠道构建
 			}
 			通过dimension指定ProductFlavor所属的维度，Android Gradle会为我们生成相应的Task、SourceSet、Dependencies等，之前我们说一个构建产物（variant）= BuildTyped+ProductFlavor，现在ProductFlavor这个维度又被我们通过dimension细化分组，所以就多了一些维度，现在构建产物（variant）= BuildType+Abi+Version了
 
-	3.提高多渠道构建的效率
+K.Lint支持：
+	主要用于针对代码、资源的优化，可以帮助我们检查哪些资源没有被使用，哪些使用了新的API，哪些资源没有国际化等。
+	Lint是一个命令行工具，是Android Tool目录下的一个工具，可以在终端里运行它，查看一些帮助配置，比如指定生成报告的目录，配置哪些项目需要检查，哪些项目禁用检查等，这些都可以通过终端运行Lint的时候指定配置来达到检查的目的。在Android Gradle中，也对Lint做了很好的支持，Android Gradle插件提供了lintOptions{}这个闭包来配置Lint，达到检查的目的。
+	lintOptions是Android对象的一个方法，接受一个类型为LintOptions的闭包：
+	android {
+		lintOptions {
+			abortOnError true
+			warningsAsErrors true
+			check 'NewApi'
+		}
+	}
+	以上配置遇到Lint检查错误的时候会终止构建，Lint的警告也会被当成错误处理，需要检查是否使用了新的API
+
+	1.abortOnError
+		这是LintOptions的属性，接受一个boolean类型的值，用于配置Lint发现错误时是否退出Gradle构建
+
+	2.absolutePaths
+		这是LintOptions的属性，接受一个boolean类型的值，用于配置错误的输出里是否应该显示绝对路径，默认显示的是相对路径
+
+	3.check
+		check既是LintOptions的一个属性，又是一个方法。而且方法对应有两个，方法名一样，接受的参数不同
+		android {
+			lintOptions {
+				check 'NewApi'
+			}
+		}
+		NewApi就是一个issue id，Lint提供了很多可用的issue id，可以在终端输入lint --list查看所有可用的id
+		check属性是一个Set集合，可以直接给它赋值一个Set集合达到配置的目的如下：
+		android {
+			lintOptions {
+				def checkSet = new HashSet<String>()
+				checkSet.add("NewApi");
+				checkSet.add("InlinedApi")
+				check = checkSet
+			}
+		}
+		或者：
+		android {
+			lintOptions {
+				check 'InlinedApi','NewApi'
+			}
+		}
+
+	4.checkAllWarnings
+		一个属性，接受一个boolean的值，True表示需要检查所有警告的issue，包括那些默认被关闭的issue；false则不检查
+
+	5.checkReleaseBuilds
+		一个属性，接受一个boolean的值作为参数。配置再release构建的过程中，Lint是否应该检查致命的错误的问题，默认是true，一旦发现有‘fatal’级别的问题，release构建会被终止
+
+	6.disable
+		有一个属性和两个同名方法配置，用来关闭给定issue ids的Lint检查。这里的参数也是issue id，可以参考check一节查看可用的issue id
+
+	7.enable
+		用来配置哪些issue id启用lint check。
+
+	8.explainIssues
+		一个属性，接受boolean类型的参数，用来配置Lint检查出的错误报告是否应该包含解释说明，默认开启，也就是报告文档里会带有该问题的解释说明
+
+	9.htmlOutput
+		一个属性，接受yigeFile类型的参数，用于配置HTML报告输出的文件路径
+		android {
+			lintOptions {
+				htmlOutput new File("${buildDir}/lintReports/lint-results.html")
+			}
+		}
+
+	10.htmlReport
+		一个属性，接受boolean类型的参数，用于配置是否生成HTML报告，默认为true，需要生成HTML报告
+
+	11.ignoreWarnings
+		一个属性，接受boolean类型参数，用于配置Lint是否忽略警告级别的检查，只检查错误级别的。默认false，不忽略警告级别的检查
+
+	12.lintConfig
+		一个属性，接受一个File对象，用于指定Lint的配置文件，这是一个XML格式的文件可以指定一些默认的设置
+
+	13.noLines
+		一个属性，接受一个boolean类型的参数，如果为true，error输出将不会包含源代码的行号，默认是true
+
+	14.quiet
+		一个属性，接受一个boolean的值，表示是否开启安静模式，值为true意味着安静模式，这样Lint分析的进度或者其他信息将不会显示
+
+	15.severityOverrides
+		只读属性，返回一个Map类型的结果，它可以用来获取issue的优先级。Map的key是issue id，value是优先级，优先级是“fatal”"error""warning""informational""ignore"
+
+	16.showAll
+		一个属性，接受一个boolean类型的值，用于标记是否应该显示所有的输出，比如位置信息，并且不会对过长的消息截断等
+
+	17.textOutput
+		只读属性，有对应的同名方法，接受一个File类型的参数，用于指定生成的text格式的报告的路径。如果你指定stdout这个值，会被指向标准的输出，一般是终端控制台。
+
+	18.textReport
+		一个属性，接受一个boolean类型的参数，用于配置是否生成text报告。默认false不生成报告
+
+	19.warningsAsErrors
+		一个属性，接受yigeboolean类型的参数，用于配置是否把所有的警告也当成错误处理默认值false。设置为true就会当成错误处理，这样生成的报告里就会把原来显示为警告的问题，显示为错误。其实就是强制把警告当成错误处理的意思，一般强制要求将警告问题也修复时会把这个标志设置为true
+
+	20.xmlOutput
+		一个属性，接受一个File类型的参数，用于设置生成XML报告的路径。
+
+	21.xmlReport
+		这是一个属性，接受一个boolean类型的参数，用于控制是否生成XML格式的报告。默认值是true，生成XML格式的报告。
+
+	22.error、fatal、ignore、warning、informational
+		上述5个方法中包含有10个同名的方法，即每组都有两个。他们都是用来配置issue的优先级的，接受的都是issue id作为其参数。error方法是把给定的issue强制指定为error这个优先级，其他的方法也是同样的功能，配置的优先级就是其方法名
 		
 
 
