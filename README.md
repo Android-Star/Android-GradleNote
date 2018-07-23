@@ -68,99 +68,97 @@ Android Gradle学习笔记
 
 >3.创建一个任务
 
-a. task customTask1 {
-		doFirst {
-			println 'customTask1:doFirst'
-		}
-		doLast {
-			println 'customTask1:doLast'
-		}
-   }
-   这里的task是Project对象的一个方法原型为create(String name,Closure configureClosure)。name是task的名字，configureClosure就是我们后面大括号里的闭包么，最后一个参数是闭包时可以放在括号外面，括号又可以省略，所以就有了上面的简洁写法
+	a. task customTask1 {
+			doFirst {
+				println 'customTask1:doFirst'
+			}
+			doLast {
+				println 'customTask1:doLast'
+			}
+	   }
+这里的task是Project对象的一个方法原型为create(String name,Closure configureClosure)。name是task的名字，configureClosure就是我们后面大括号里的闭包么，最后一个参数是闭包时可以放在括号外面，括号又可以省略，所以就有了上面的简洁写法
 
- b. 另外一种创建方法
- 	tasks.create("customTask2") {
- 		doFirst {
-			println 'customTask1:doFirst'
-		}
-		doLast {
-			println 'customTask1:doLast'
-		}
- 	}
-
+	 b. 另外一种创建方法
+	 	tasks.create("customTask2") {
+	 		doFirst {
+				println 'customTask1:doFirst'
+			}
+			doLast {
+				println 'customTask1:doLast'
+			}
+	 	}
+	
 >4.任务依赖：通过dependsOn来指定依赖的task，可以依赖多个task
 
-task Hello{
-	doLast{
-		println 'Hello'
+	task Hello{
+		doLast{
+			println 'Hello'
+		}
 	}
-}
-
-task World{
-	doLast{
-		println 'World'
+	
+	task World{
+		doLast{
+			println 'World'
+		}
 	}
-}
-
-task Main {
-	dependsOn Hello
-	doLast{
-		println 'Main';
+	
+	task Main {
+		dependsOn Hello
+		doLast{
+			println 'Main';
+		}
 	}
-}
-
-task MultiTask{
-	dependsOn Hello,World
-	doLast {
-		println 'MultiTask'
+	
+	task MultiTask{
+		dependsOn Hello,World
+		doLast {
+			println 'MultiTask'
+		}
 	}
-}
 
 >5.task间通过api控制、交互
 
-task ex36Hello {
-	println 'dowLast1'
-}
-
-ex36Hello.doFirst {
-	println 'doFirst'
-}
-
-ex36Hello.doLast {
-	println project.hasProperty('ex36Hello')
-	println 'doLast2'
-}
+	task ex36Hello {
+		println 'dowLast1'
+	}
+	
+	ex36Hello.doFirst {
+		println 'doFirst'
+	}
+	
+	ex36Hello.doLast {
+		println project.hasProperty('ex36Hello')
+		println 'doLast2'
+	}
 
 >6.自定义属性
-		project和task都允许用户添加额外的自定义属性，要添加额外的属性，通过应用所属对应的ext属性即可，添加之后可以通过ext属性对自定义属性读取和设置，如果要同时添加多个可以使用ext代码块
-		自定义一个project属性：ext.age=18
-		通过代码块同时自定义多个属性：
+project和task都允许用户添加额外的自定义属性，要添加额外的属性，通过应用所属对应的ext属性即可，添加之后可以通过ext属性对自定义属性读取和设置，如果要同时添加多个可以使用ext代码块自定义一个project属性：ext.age=18通过代码块同时自定义多个属性：
     
-ext {
-	phone = 1334512
-	address = ''
-}
-task customProperty {
-	println "年龄是：${age}"
-	println "电话是：${phone}"
-	println "地址是：${address}"
-}
-与局部变量相比，自定义属性有更广泛的作用域，只要你能访问这些属性所属的对象，那么这些属性都可以被访问到
-
-自定义属性还可以作用于sourceset中，这样等同于每种sourceset又多了一个可供配置的属性：
-
-sourceSets.all {
-	ext.resourcesDir = null
-}
-
-sourceSets {
-	main {
-		resourcesDir = "main/res"
+	ext {
+		phone = 1334512
+		address = ''
 	}
-	test {
-		resourcesDir = "test/res"
+	task customProperty {
+		println "年龄是：${age}"
+		println "电话是：${phone}"
+		println "地址是：${address}"
 	}
-}
+	与局部变量相比，自定义属性有更广泛的作用域，只要你能访问这些属性所属的对象，那么这些属性都可以被访问到
+	
+	自定义属性还可以作用于sourceset中，这样等同于每种sourceset又多了一个可供配置的属性：
+	
+	sourceSets.all {
+		ext.resourcesDir = null
+	}
+	
+	sourceSets {
+		main {
+			resourcesDir = "main/res"
+		}
+		test {
+			resourcesDir = "test/res"
+		}
+	}
 
 ### D.gradle任务
 >1.分组和描述：分别用group和description赋值
@@ -172,29 +170,29 @@ sourceSets {
 			}
 
 >3.task执行分析：
-		当我们执行一个Task时候，其实就是执行其拥有的ctions列表，这个列表保存在Task对象实例中的ations成员变量中，其类型是一个List
+	当我们执行一个Task时候，其实就是执行其拥有的ctions列表，这个列表保存在Task对象实例中的ations成员变量中，其类型是一个List
     
-def Task mytask = task customTasktype: CustomTask)
-mytask.doFirst {
-    println("task执行之前")
-}
-
-mytask.doLast {
-    println("task执行之后")
-}
-
-class CustomTask extends DefaultTask{
-    @TaskAction
-    def doSelfTask(){
-        println("执行自己的task")
-    }
-}
-运行结果：
-	:customTask
-	task执行之前
-	执行自己的task
-	task执行之后
-其中@TaskAction注解标注意思是task本事执行执行的方法
+	def Task mytask = task customTasktype: CustomTask)
+	mytask.doFirst {
+	    println("task执行之前")
+	}
+	
+	mytask.doLast {
+	    println("task执行之后")
+	}
+	
+	class CustomTask extends DefaultTask{
+	    @TaskAction
+	    def doSelfTask(){
+	        println("执行自己的task")
+	    }
+	}
+	运行结果：
+		:customTask
+		task执行之前
+		执行自己的task
+		task执行之后
+	其中@TaskAction注解标注意思是task本事执行执行的方法
 
 >4.任务排序
 		shouldRunAfter,mustRunAfter
@@ -207,17 +205,17 @@ class CustomTask extends DefaultTask{
 		Task有一个onlyIf方法，他接受一个闭包作为参，如果该闭包返回true则该任务执行，否则跳过
 
 >7.任务规则:
-tasks.addRule("规则描述，便于调试查找",{
-		String taskName->
-			task (taskName) <<{
-			    println("该任务${taskName}务不存在，请查证后再试")
-			}
-	})
-	
-task exTask4 {
-    dependsOn missTask
-}
-如果执行不存在的missTask就会输出上面自定义描述信息
+	tasks.addRule("规则描述，便于调试查找",{
+			String taskName->
+				task (taskName) <<{
+				    println("该任务${taskName}务不存在，请查证后再试")
+				}
+		})
+		
+	task exTask4 {
+	    dependsOn missTask
+	}
+	如果执行不存在的missTask就会输出上面自定义描述信息
 
 ### E.Gradle插件
 >1.如何应用一个插件：
@@ -234,21 +232,21 @@ task exTask4 {
 		2>应用脚本插件：
 		build.gradle中：
     
-apply from:'version.gradle'
+	apply from:'version.gradle'
+	
+	task ex52PrintlnTask <<{
+		println "App版本是：${versionName},版本号是：${versionCode}"
+	}
+	
+	version.gradle中：
+	ext {
+		versionName = '1.0.0'
+		versionCode = 1
+	}
+这只是一个脚本，应用脚本插件就是把这个脚本加载进来，和二进制插件不同的是它使用的是from关键字，后面紧跟的是一个脚本文件，可以是本地的，也可以是网络存在的，如果是网络上的话要使用HTTP URL
 
-task ex52PrintlnTask <<{
-	println "App版本是：${versionName},版本号是：${versionCode}"
-}
-
-version.gradle中：
-ext {
-	versionName = '1.0.0'
-	versionCode = 1
-}
-		这只是一个脚本，应用脚本插件就是把这个脚本加载进来，和二进制插件不同的是它使用的是from关键字，后面紧跟的是一个脚本文件，可以是本地的，也可以是网络存在的，如果是网络上的话要使用HTTP URL
-
-		3>应用第三方发布的插件：
-		应用第三方发布的二进制插件必须先在buildscript{}里配置其classpath才能使用，比如我们的Android Gradle插件，就属于Android发布的第三方插件，如果要使用我们必须先配置：
+3>应用第三方发布的插件：
+应用第三方发布的二进制插件必须先在buildscript{}里配置其classpath才能使用，比如我们的Android Gradle插件，就属于Android发布的第三方插件，如果要使用我们必须先配置：
     
 		buildscript {
 			repositories {
@@ -268,7 +266,7 @@ ext {
 
 >2.工程示例：
 
-buildscript {
+	buildscript {
 
 		repositories {
 		    google()
@@ -281,40 +279,40 @@ buildscript {
 		    // NOTE: Do not place your application 		dependencies here; they belong
 		    // in the individual module build.gradle 		files
 		}
-}
+	}
 
-apply plugin: 'com.android.application'
-
-android {
-    compileSdkVersion 27
-    defaultConfig {
-        applicationId 		"com.example.wilsonhan.gradletest"
-        minSdkVersion 18
-        targetSdkVersion 27
-        versionCode 1
-        versionName "1.0"
-        testInstrumentationRunner "android.support.		test.runner.AndroidJUnitRunner"
-    }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('p		roguard-android.txt'), 		'proguard-rules.pro'
-        }
-    }
-}
-
-dependencies {
-    implementation fileTree(dir: 'libs', include: 		['*.jar'])
-    implementation 		'com.android.support:appcompat-v7:27.1.1'
-    implementation 'com.android.support.constraint:		constraint-layout:1.1.2'
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 		'com.android.support.test:runner:1.0.2'
-    androidTestImplementation 'com.android.support.		test.espresso:espresso-core:3.0.2'
-}
+	apply plugin: 'com.android.application'
+	
+	android {
+	    compileSdkVersion 27
+	    defaultConfig {
+	        applicationId 		"com.example.wilsonhan.gradletest"
+	        minSdkVersion 18
+	        targetSdkVersion 27
+	        versionCode 1
+	        versionName "1.0"
+	        testInstrumentationRunner "android.support.		test.runner.AndroidJUnitRunner"
+	    }
+	    buildTypes {
+	        release {
+	            minifyEnabled false
+	            proguardFiles getDefaultProguardFile('p		roguard-android.txt'), 		'proguard-rules.pro'
+	        }
+	    }
+	}
+	
+	dependencies {
+	    implementation fileTree(dir: 'libs', include: 		['*.jar'])
+	    implementation 		'com.android.support:appcompat-v7:27.1.1'
+	    implementation 'com.android.support.constraint:		constraint-layout:1.1.2'
+	    testImplementation 'junit:junit:4.12'
+	    androidTestImplementation 		'com.android.support.test:runner:1.0.2'
+	    androidTestImplementation 'com.android.support.		test.espresso:espresso-core:3.0.2'
+	}
 Android Gradle工程的配置，都是在android{}中，这是唯一的一个入口。通过它，可以对Android Gradle工程进行自定义的配置，其具体实现是com.android.build.gradle.AppExtension,是Project的一个扩展。
 
 >3. compileSdkVersion
-		compileSdkVersion是配置我们编译Android工程的SDK，设置方法：
+compileSdkVersion是配置我们编译Android工程的SDK，设置方法：
     
 			compileSdkVersion 23
 			compileSdkVersion 'android-23'
@@ -346,18 +344,18 @@ Android Gradle工程的配置，都是在android{}中，这是唯一的一个入
 >1.defaultConfig默认配置
 	一个基本的defaultConfig配置如下：
   
-android {
-  	compileSdkVersion 27
-  	defaultConfig {
-  	    applicationId 	"com.example.wilsonhan.gradletest"
-  	    minSdkVersion 18
-  	    targetSdkVersion 27
-  	    versionCode 1
-  	    versionName "1.0"
-  	    testInstrumentationRunner"android.support.test	.runner.AndroidJUnitRunner"
-  	}
-  	//......
-}
+	android {
+	  	compileSdkVersion 27
+	  	defaultConfig {
+	  	    applicationId 	"com.example.wilsonhan.gradletest"
+	  	    minSdkVersion 18
+	  	    targetSdkVersion 27
+	  	    versionCode 1
+	  	    versionName "1.0"
+	  	    testInstrumentationRunner"android.support.test	.runner.AndroidJUnitRunner"
+	  	}
+	  	//......
+	}
 	1>applicationId：是ProductFlavor的一个属性，用于指定生成的App的包名，默认为null，在构建的时候会从AndroidManifest.xml文件中读取，对应其中的package属性值
 
 	2>minSdkVersion:是ProductFlavor的一个方法，指定我们的App最低支持的Android操作系统版本，对应Android SDK的API LEVEL，接受一个整数或字符串。
@@ -381,7 +379,7 @@ android {
 >2.配置签名信息
 		对于签名信息的配置，Android Gradle为我们提供了非常简便的方式：
     
-android {
+	android {
 		compileSdkVersion 27
 		buildToolsVersion '27.0.3'
 		signingConfigs {
@@ -421,10 +419,10 @@ android {
  	}
  	示例：
  	// Initialize a new Properties() object called keystoreProperties.
-def keystoreProperties = new Properties()
-// load keystore properties file from root filesystem
-keystoreProperties.load(new FileInputStream("/opt/dereleasekey/declient.properties"))
-signingConfigs {
+	def keystoreProperties = new Properties()
+	// load keystore properties file from root filesystem
+	keystoreProperties.load(new FileInputStream("/opt/dereleasekey/declient.properties"))
+	signingConfigs {
     	debug {
     	}
     	release {
@@ -446,38 +444,38 @@ signingConfigs {
 
 >3.构建应用类型
 可以在buildTypes中添加新的构建类型，下面介绍一些BuildType常用的配置
-1>applicationIdSuffix：是BuildType的一个属性，用于配置基于默认applicationId的后缀，比如我们在defaultConfig中配置的applicationId为com.test.app。我们在debug的BuildType中指定的applicationIdSuffix为.debug，那么构建生成的debug apk的包名就是com.test.app.debug
-
-2>debuggable：也是BuildType的一个属性，用于配置是否生成一个可供调试的apk。其值可以为true或者false
-
-3>jniDebuggable：和debuggable类似，也是BUildType的一个属性，用于配置是否生成一个可供调试jni代码的apk
-
-4>minifyEnabled：也是BuildType的一个属性，用于配置该BuildType是否启用proguard混淆
-
-5>multiDexEnabled：也是BuildType的一个属性，用于配置该BuildType是否启用自动拆分多个Dex的功能，一般应用程序中代码太多，超过了56635个方法的时候。拆分为多个Dex的处理
-
-6>proguardFile：是BuildType的一个方法用于配置Proguard混淆使用的配置文件。
-
-7>proguardFiles：是BuildType的一个方法，用于配置proguard混淆使用的配置文件，可以同时配置多个Proguard配置文件
-
-8>shrinkResources：是BuildType的一个属性，用于配置是否自动清理未使用的资源
-
-9>signingConfig：配置该BuildType使用的签名配置。
+	1>applicationIdSuffix：是BuildType的一个属性，用于配置基于默认applicationId的后缀，比如我们在defaultConfig中配置的applicationId为com.test.app。我们在debug的BuildType中指定的applicationIdSuffix为.debug，那么构建生成的debug apk的包名就是com.test.app.debug
+	
+	2>debuggable：也是BuildType的一个属性，用于配置是否生成一个可供调试的apk。其值可以为true或者false
+	
+	3>jniDebuggable：和debuggable类似，也是BUildType的一个属性，用于配置是否生成一个可供调试jni代码的apk
+	
+	4>minifyEnabled：也是BuildType的一个属性，用于配置该BuildType是否启用proguard混淆
+	
+	5>multiDexEnabled：也是BuildType的一个属性，用于配置该BuildType是否启用自动拆分多个Dex的功能，一般应用程序中代码太多，超过了56635个方法的时候。拆分为多个Dex的处理
+	
+	6>proguardFile：是BuildType的一个方法用于配置Proguard混淆使用的配置文件。
+	
+	7>proguardFiles：是BuildType的一个方法，用于配置proguard混淆使用的配置文件，可以同时配置多个Proguard配置文件
+	
+	8>shrinkResources：是BuildType的一个属性，用于配置是否自动清理未使用的资源
+	
+	9>signingConfig：配置该BuildType使用的签名配置。
 
 >4.启用zipalign优化
 	zipalign是Android为我们提供的一个整理优化apk文件的工具，它能提高系统和应用的运行效率，更快地读写apk中的资源，降低内存的使用。
 	要为release模式开启zipalign优化只需要如下配置：
       
-android {
-	buildTypes {
-		release {
-			zipAlignEnabled true
-		}
-		debug {
-
+	android {
+		buildTypes {
+			release {
+				zipAlignEnabled true
+			}
+			debug {
+	
+			}
 		}
 	}
-}
 
 ### H.Android Gradle高级自定义
 >1.批量修改生成的apk文件名：
